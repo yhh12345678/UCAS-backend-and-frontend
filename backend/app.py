@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 import requests
-
+import json
 app = Flask(__name__)
 
 
@@ -14,14 +14,44 @@ def get_users():
     
     return jsonify(users)  # 自动设置 Content-Type: application/json
 
+
 # POST 请求示例：接收 JSON 并处理
 @app.route('/api/users', methods=['POST'])
 def create_user():
-    data = request.get_json()  # 解析请求体中的 JSON
+
+    data = request.get_json()
+    
+    
+      # 解析请求体中的 JSON
     if not data or 'name' not in data:
         return jsonify({"error": "Missing name"}), 400
     users.append({"id": 3, "name": data['name']})
     return jsonify(users), 201  # 201 Created
+
+
+@app.route('/api/qwen',methods=['GET'])
+def test_qwen_api():
+
+    data = {
+  "model": "qwen3.5:4b",
+  "messages": [
+    {
+      "role": "user",
+      "content": "你好"
+    }
+  ],
+  "stream": False  
+}
+
+
+    response = requests.post(
+      "http://localhost:11434/api/chat",
+      json=data        
+  )
+
+    return jsonify({"status_code": response.status_code, "response": response.json()["message"]["content"]})
+    
+
 
 # 带路径参数的 GET 请求
 @app.route('/api/users/<int:user_id>', methods=['GET'])
