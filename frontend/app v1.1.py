@@ -94,11 +94,11 @@ if st.session_state.get("error"):
     st.error(st.session_state["error"])
 elif st.session_state.get("response"):
     st.markdown(st.session_state["response"])
-    '''st.caption(
+    st.caption(
         f"耗时: {st.session_state.get('elapsed', '?')}s  |  "
         f"tokens: {max_tokens}  |  "
         f"temperature: {temperature}"
-    )'''
+    )
     # ── 复制按钮 ──
     st.download_button(
         label="📋 下载结果 (txt)",
