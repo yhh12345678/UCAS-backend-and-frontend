@@ -33,28 +33,17 @@ def create_user():
     return jsonify(users), 201  # 201 Created
 
 
-@app.route('/api/qwen',methods=['GET'])
+@app.route('/api/qwen',methods=['POST'])
 def test_qwen_api():
 
-    
-    data = {
-  "model": "qwen3.5:0.8b",
-  "messages": [
-    {
-      "role": "user",
-      "content": "今晚吃什么"
-    }
-  ],
-  "stream": False  
-}
-
+    data=request.get_json()
 
     response = requests.post(
       "http://localhost:11434/api/chat",
       json=data        
   )
 
-    return response.json()["message"]["content"]
+    return jsonify(response.json()["message"])
     
 
 
