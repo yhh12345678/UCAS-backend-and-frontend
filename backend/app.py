@@ -1,50 +1,65 @@
 from flask import Flask, request, jsonify
 import requests
+import ollama
 import json
+
+from flask_sqlalchemy import SQLAlchemy
+import os
 app = Flask(__name__)
 
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'instance', 'chat.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_size': 10,          # 连接池的大小
+    'pool_recycle': 3600,     # 连接回收时间（秒），避免MySQL 8小时断开连接的问题
+    'pool_pre_ping': True,    # 每次使用连接前检查其是否有效
+    'pool_timeout': 30,       # 从池中获取连接的超时时间（秒）
+    'max_overflow': 20,       # 连接池允许的最大溢出连接数
+}
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    db.session.remove()
+
+
+
+
+
+
+conversation_history = []#保持记忆
 
 @app.route('/')
 def hello():
-    return "<p>hello world</p>"
+    return "<p>welcome to our LLM</p>"
 
-
-#提供API为客户端调用
-users = [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
-
-# GET 请求示例：返回数据
-@app.route('/api/users', methods=['GET'])
-def get_users():
-    
-    return jsonify(users)  # 自动设置 Content-Type: application/json
-
-
-# POST 请求示例：接收 JSON 并处理
-@app.route('/api/users', methods=['POST'])
-def create_user():
-
-    data = request.get_json()
-    
-    
-      # 解析请求体中的 JSON
-    if not data or 'name' not in data:
-        return jsonify({"error": "Missing name"}), 400
-    users.append({"id": 3, "name": data['name']})
-    return jsonify(users), 201  # 201 Created
-
-
+#单轮对话，无记忆
+'''
 @app.route('/api/qwen',methods=['POST'])
 def test_qwen_api():
 
     data=request.get_json()
+    model=data['model']
+    messages = data['prompt']
+    response = ollama.generate(model=model, prompt=messages)
+    #messages.append(response['message'])
+    return jsonify({'content': response['response']})
+'''
 
-    response = requests.post(
-      "http://localhost:11434/api/chat",
-      json=data        
-  )
 
-    return jsonify(response.json()["message"])
-    
+#多轮对话
+@app.route('/api/qwen',methods=['POST'])
+def test_qwen_api():
+
+    data=request.get_json()#data此时是字典类型
+    model=data['model']
+    messages = data.get('messages')
+    conversation_history.append({"role": "user", "content":messages[-1]['content']})
+    response = ollama.chat(model=model, messages=conversation_history)
+    conversation_history.append({'role':"assistant",'content':response['message']['content']})
+    return jsonify({'role':"assistant",'content': response['message']['content']})
+
 
 
 # 带路径参数的 GET 请求
@@ -55,20 +70,6 @@ def get_user(user_id):
     return jsonify(user)
 
 
-#调用外部的API
-@app.route('/proxy/mediastack', methods=['GET'])
-def call_mediastack_api():
-    # 调用 GitHub 公开 API
-    url = 'https://api.mediastack.com/v1/news?access_key=()&keywords=war&countries=cn'
-    try:
-        response = requests.get(url, timeout=5)
-        #response = requests.get(url, timeout=5)  # 设置超时，避免阻塞
-        response.raise_for_status()              # 如果状态码不是 200，抛出异常
-        data = response.json()                   # 解析返回的 JSON
-        return data['data'],200
-    
-    except requests.exceptions.RequestException as e:
-        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':
