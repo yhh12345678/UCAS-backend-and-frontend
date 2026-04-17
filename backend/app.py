@@ -4,6 +4,10 @@ import json
 app = Flask(__name__)
 
 
+@app.route('/')
+def hello():
+    return "<p>hello world</p>"
+
 
 #提供API为客户端调用
 users = [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
@@ -32,12 +36,13 @@ def create_user():
 @app.route('/api/qwen',methods=['GET'])
 def test_qwen_api():
 
+    
     data = {
-  "model": "qwen3.5:4b",
+  "model": "qwen3.5:0.8b",
   "messages": [
     {
       "role": "user",
-      "content": "你好"
+      "content": "今晚吃什么"
     }
   ],
   "stream": False  
@@ -49,7 +54,7 @@ def test_qwen_api():
       json=data        
   )
 
-    return jsonify({"status_code": response.status_code, "response": response.json()["message"]["content"]})
+    return response.json()["message"]["content"]
     
 
 
@@ -78,4 +83,4 @@ def call_mediastack_api():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)  # debug 模式方便开发，生产环境需关闭
+    app.run(host='0.0.0.0', port=8080, debug=True)  # debug 模式方便开发，生产环境需关闭
