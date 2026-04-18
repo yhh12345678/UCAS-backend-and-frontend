@@ -2,15 +2,11 @@ from flask import Flask, request, jsonify
 import requests
 import ollama
 import json
-
-from flask_sqlalchemy import SQLAlchemy
 import os
+from flask_sqlalchemy import SQLAlchemy
 app = Flask(__name__)
 
-basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'instance', 'chat.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
+
 
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_size': 10,          # 连接池的大小
@@ -23,12 +19,76 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 def shutdown_session(exception=None):
     db.session.remove()
 
+#创建数据库实例
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'instance')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
 
 
 
 
-conversation_history = []#保持记忆
+
+
+
+
+
+
+    #创建数据库中的一张表
+class Model(db.Model,):  # 继承父类
+            # 定义列
+            id = db.Column(db.Integer, primary_key=True)    # 主键，自增整数
+            role = db.Column(db.String(80), unique=False, nullable=False)# 用户名，唯一，不可为空
+            content = db.Column(db.String(80), unique=False, nullable=False)
+            # 可以继续添加其他字段
+            @classmethod
+            def add_instance(cls,role_1, content):
+                new_user_1 = cls(role=role_1, content=content)
+                # 这是一个实例
+                # 将用户对象添加到数据库会话
+                db.session.add(new_user_1)
+                # 数据库里加入了这个对象
+                # 提交会话，保存到数据库
+                db.session.commit()
+
+
+            def to_dict(self):
+                return {
+                    'id': self.id,
+                    'role': self.role,
+                    'content': self.content
+                }
+
+            def __repr__(self):
+                return f'<User id={self.id} role={self.role} content={self.content}>'
+
+
+
+
+
+with app.app_context():
+    db.create_all()
+    #db.session.query(Model).delete()
+    #db.session.commit()# 创建新表
+    all_users = Model.query.all()
+    print (all_users)
+
+
+
+    #数据删除过程
+#    db.session.query(Model).delete()
+ #   db.session.commit()
+
+
+
+
+
+
+
+
+
+
 
 @app.route('/')
 def hello():
@@ -52,12 +112,22 @@ def test_qwen_api():
 @app.route('/api/qwen',methods=['POST'])
 def test_qwen_api():
 
+
+
     data=request.get_json()#data此时是字典类型
+
     model=data['model']
+
     messages = data.get('messages')
-    conversation_history.append({"role": "user", "content":messages[-1]['content']})
+
+    Model.add_instance("user", messages[-1]['content'])
+
+    conversation_history = [user.to_dict() for user in Model.query.all()]
+
     response = ollama.chat(model=model, messages=conversation_history)
-    conversation_history.append({'role':"assistant",'content':response['message']['content']})
+
+    Model.add_instance("assistant", response['message']['content'])
+
     return jsonify({'role':"assistant",'content': response['message']['content']})
 
 

@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import time
 
+
 st.set_page_config(page_title="UCAS LLP - 小模型实验平台", page_icon="🧪", layout="centered")
 
 st.title("🧪 UCAS 小模型实验平台")
@@ -9,6 +10,15 @@ st.caption("实验性 Demo — 基于 Ollama / gemma4")
 
 backend_URL = "http://127.0.0.1:8080/api/qwen"
 DEFAULT_MODEL = "gemma4:e4b"
+
+# 在 session_state 中初始化一个列表来存储所有消息
+if 'messages'not in st.session_state:
+    st.session_state.messages = []
+if 'questions' not in st.session_state:
+    st.session_state.questions = []
+
+# 创建一个占位容器
+
 
 
 
@@ -49,6 +59,8 @@ clear_btn = col2.button("🗑 清空")
 
 if clear_btn:
     st.session_state["response"] = ""
+    st.session_state.messages = []
+    st.session_state.questions = []
     st.rerun()
 
 # ── 生成逻辑 ──
@@ -63,6 +75,7 @@ if run_btn and user_input.strip():
                       "stream": False
                     }
         try:
+            st.session_state.questions.append(user_input)
             start = time.time()
             res = requests.post(backend_URL, json=payload)
             elapsed = round(time.time() - start, 2)
@@ -70,6 +83,8 @@ if run_btn and user_input.strip():
             response_text = res.json()
             st.session_state['response'] = response_text['content']
             #st.session_state["response"] = res
+            st.session_state.messages.append(st.session_state['response'])
+
             st.session_state['elapsed'] = elapsed
             st.session_state['error'] = ""
         except requests.exceptions.ConnectionError:
@@ -94,7 +109,18 @@ st.markdown("### 生成结果")
 if st.session_state.get('error'):
     st.error(st.session_state['error'])
 elif st.session_state.get('response'):
-    st.markdown(st.session_state['response'])
+
+    # 每次有新增消息时，更新 session_state 并重新渲染
+
+    # 将新消息添加到状态中
+    for (entry_1,ques_1) in zip(st.session_state.messages, st.session_state.questions):
+    # 清空容器并重绘所有历史消息
+        st.write(f"<span style='color: red; display: block; text-align: right;'>{ques_1}</span>", unsafe_allow_html=True)
+        st.write(f"<div style='border:1px solid #ccc; padding: 10px; border-radius: 5px;'>{entry_1}</div>",unsafe_allow_html=True)
+        st.write("---")
+      # 触发页面刷新以更新输入框等状态
+
+    #st.markdown(st.session_state['response'])
     st.caption(
         f"耗时: {st.session_state.get('elapsed', '?')}s  |  "
         f"tokens: {max_tokens}  |  "
